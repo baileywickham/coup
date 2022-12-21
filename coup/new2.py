@@ -1,6 +1,6 @@
+from transitions import State, Machine, Transition, EventData
 import random
 
-from transitions import State, EventData
 from transitions.extensions import GraphMachine
 
 
