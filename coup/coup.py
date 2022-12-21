@@ -2,41 +2,7 @@ import random
 
 from transitions import State, EventData
 from transitions.extensions import GraphMachine
-
-
-class Card:
-    def __init__(self, name, face_up=False):
-        self.name = name
-        self.face_up = face_up
-
-    def __repr__(self):
-        return f'{self.name}'
-
-    def __eq__(self, other):
-        return isinstance(other, Card) and other.name == self.name
-
-
-class Deck:
-    card_types = ['duke', 'assassin', 'contessa', 'captain', 'ambassador']
-
-    def __init__(self, pre_cards: list[Card] = None):
-        """ Returns a shuffled deck
-        :parameter pre_cards a list of pre drawn cards for debugging purposes."""
-        self.cards: list[Card] = pre_cards or []
-        for card_type in Deck.card_types:
-            while self.cards.count(Card(card_type)) < 3:
-                self.cards.append(Card(card_type))
-        self.shuffle()
-
-    def return_to_deck(self, card):
-        self.cards.append(card)
-        random.shuffle(self.cards)
-
-    def draw(self):
-        return self.cards.pop()
-
-    def shuffle(self):
-        random.shuffle(self.cards)
+from coup.deck import *
 
 
 class Player:
@@ -65,9 +31,13 @@ class Player:
         for card in self.cards:
             if card.face_up is False:
                 card.face_up = True
+                return
 
     def is_dead(self):
-        return all([True if card.face_up else False for card in self.cards])
+        for card in self.cards:
+            if card.face_up is False:
+                return False
+        return True
 
     def draw(self, card: Card):
         self.cards.append(card)
@@ -78,30 +48,37 @@ class Coup:
               State(name='waiting_fa_block'),
               State(name='block_foreign_aid')]
 
-    def __init__(self, players: list[Player], deck: Deck = None):
+    def __init__(self, players: list[Player]):
         self.player_index = 0
         self.players = players
         self.active_players = players
         self.current_player = players[0]
 
-        self.deck = deck or Deck()
+        pre_cards = []
+        for player in players:
+            pre_cards.extend(player.cards)
+        self.deck = Deck(pre_cards=pre_cards)
+
         for player in self.active_players:
             while len(player.cards) < 2:
                 player.draw(self.deck.draw())
 
         self.m = GraphMachine(model=self, states=Coup.states, initial='player_turn', send_event=True,
                               auto_transitions=False)
-        transitions = [{'trigger': 'income', 'source': 'player_turn', 'dest': 'player_turn', 'after': 'do_income'},
+        transitions = [{'trigger': 'income', 'source': 'player_turn', 'dest': 'player_turn', 'before': 'do_income'},
                        {'trigger': 'foreign_aid', 'source': 'player_turn', 'dest': 'waiting_fa_block'},
                        {'trigger': 'decline_block', 'source': 'waiting_fa_block', 'dest': 'player_turn',
                         'after': 'do_foreign_aid'},
                        {'trigger': 'accept_block', 'source': 'waiting_fa_block', 'dest': 'block_foreign_aid'},
                        {'trigger': 'challenge_block', 'source': 'block_foreign_aid', 'dest': 'player_turn',
-                        'after': 'challenge_block_foreign_aid'},
+                        'before': 'challenge_block_foreign_aid'},
                        {'trigger': 'decline_challenge_block', 'source': 'block_foreign_aid', 'dest': 'player_turn'}
                        ]
         self.m.add_transitions(transitions)
         self.m.get_graph().draw('coup.png', prog='dot')
+
+    def __repr__(self):
+        return '\n'.join([str(player) for player in self.active_players])
 
     def get_player(self, name):
         for player in self.active_players:
@@ -111,7 +88,6 @@ class Coup:
     def next_turn(self, event):
         self.player_index = (self.player_index + 1) % len(self.active_players)
         self.current_player = self.active_players[self.player_index]
-        print('current player: ', self.current_player)
 
     def do_income(self, event):
         self.current_player.income()
@@ -135,14 +111,12 @@ class Coup:
         return self.m.get_triggers(self.state)
 
 
-preCard = Card('duke')
-newDeck = Deck(pre_cards=[preCard])
-players = [Player('test0', cards=[preCard]), Player('test1')]
-c = Coup(players)
-c.trigger('income')
-c.trigger('foreign_aid')
-c.trigger('accept_block')
-print(c.get_possible_transitions())
-c.trigger('challenge_block', blocker='test0')
-print(c.active_players)
-print(c.get_possible_transitions())
+if __name__ == '__main__':
+    preCard = Card('duke')
+    players = [Player('test0', cards=[preCard]), Player('test1')]
+    c = Coup(players)
+    c.trigger('foreign_aid')
+    c.trigger('accept_block')
+    print(c.get_possible_transitions())
+    c.trigger('challenge_block', blocker='test0')
+    print(c)
