@@ -31,3 +31,11 @@ print(c) # prints game state
 The main way to use the `Coup` class is to use `c.trigger('action')`. This triggers a transition between states. 
 
 ![diagram](tests/coup.png)
+
+
+## Todo
+[ ] Write a wrapper for the state machine
+[ ] Finish ambassador flow
+[ ] Rewrite to use geneic method for conflict resolution
+[ ] Write better test cases for all characters
+[ ] Fix game over states
