@@ -86,7 +86,7 @@ class Coup:
 
         # Since an FSM isn't a turing machine, we must store some state in the class
         self.foreign_aid_blocker: Optional[Player] = None
-        self.assassination_target: Optional[Player] = None
+        self.assassin_target: Optional[Player] = None
         self.captain_target: Optional[Player] = None
         self.player_index = 0
         self.players = players
@@ -129,7 +129,8 @@ class Coup:
         self.m.add_transition(trigger='assassin', source=States.player_turn, dest=States.waiting_block_assassin,
                               before=self.queue_assassin, unless=self.force_coup)
         self.m.add_transition(trigger='challenge_assassin', source=States.waiting_block_assassin,
-                              dest=States.player_turn, before=self.resolve_challenge(self.get_current_player, 'assassin'))
+                              dest=States.player_turn,
+                              before=self.resolve_challenge(self.get_current_player, 'assassin'))
         self.m.add_transition(trigger='block_assassin', source=States.waiting_block_assassin,
                               dest=States.waiting_challenge_block_assassin)
         self.m.add_transition(trigger='decline_block_assassin', source=States.waiting_block_assassin,
@@ -162,7 +163,8 @@ class Coup:
         self.m.add_transition(trigger='decline_challenge', source=States.waiting_challenge_captain,
                               dest=States.player_turn, before=self.do_captain)
         self.m.add_transition(trigger='challenge_captain', source=States.waiting_challenge_captain,
-                              dest=States.player_turn, before=self.resolve_challenge_captain)
+                              dest=States.player_turn,
+                              before=self.resolve_challenge(self.get_current_player, 'captain', self.do_captain))
 
         # Ambassador states
         self.m.add_transition(trigger='ambassador', source=States.player_turn, dest=States.waiting_challenge_ambassador,
@@ -173,7 +175,12 @@ class Coup:
     def __repr__(self):
         return f'State: {self.state}\n' + '\n'.join([str(player) for player in self.active_players])
 
-    def get_current_player(self) -> Player: return self.current_player
+    def get_current_player(self) -> Player:
+        """ Helper method to return the current player, needed because of the resolve_conflict closure."""
+        return self.current_player
+
+    def get_assassin_target(self) -> Player:
+        return self.assassin_target
 
     def force_coup(self, event):
         return True if self.current_player.coins >= 10 else False
@@ -195,7 +202,7 @@ class Coup:
                 return player
 
     def next_turn(self, event):
-        self.assassination_target = None
+        self.assassin_target = None
         self.foreign_aid_blocker = None
         self.captain_target = None
         if self.debug:
@@ -220,18 +227,10 @@ class Coup:
         self.lose_influence(target)
 
     def do_assassin(self, event: EventData):
-        self.lose_influence(self.assassination_target)
+        self.lose_influence(self.assassin_target)
 
     def do_duke(self, event: EventData = None):
         self.current_player.coins += 3
-
-    def do_captain(self, event: Optional[EventData]):
-        if self.captain_target.coins >= 2:
-            self.captain_target.coins -= 2
-            self.current_player.coins += 2
-        else:
-            self.current_player.coins += self.captain_target.coins
-            self.captain_target.coins = 0
 
     def lose_influence(self, target: Player):
         target.lose_influence()
@@ -248,7 +247,7 @@ class Coup:
             self.do_foreign_aid()
 
     def resolve_challenge_block_assassin(self, event: EventData):
-        blocker = self.assassination_target
+        blocker = self.assassin_target
         if card := blocker.show('contessa'):
             self.lose_influence(self.current_player)
             self.exchange_card(blocker, card)
@@ -264,32 +263,6 @@ class Coup:
             self.lose_influence(blocker)
             self.do_captain()
 
-    # def resolve_challenge_assassin(self, event: EventData):
-    #     if card := self.current_player.show('assassin'):
-    #         self.lose_influence(self.assassination_target)
-    #         self.exchange_card(self.current_player, card)
-    #     else:
-    #         self.lose_influence(self.current_player)
-
-    def resolve_challenge_duke(self, event: EventData):
-        challenger = self.get_player(event.kwargs.get('challenger'))
-        if not challenger:
-            raise Exception(f'challenger {event.kwargs.get("challenger")} not defined')
-        if card := self.current_player.show('duke'):
-            print('here', self.current_player)
-            self.exchange_card(self.current_player, card)
-            self.do_duke()
-            self.lose_influence(challenger)
-        else:
-            self.lose_influence(self.current_player)
-
-    def resolve_challenge_captain(self, event: EventData):
-        if card := self.current_player.show('captain'):
-            self.lose_influence(self.captain_target)
-            self.exchange_card(self.current_player, card)
-        else:
-            self.lose_influence(self.current_player)
-
     def get_possible_transitions(self):
         return self.m.get_triggers(self.state)
 
@@ -299,7 +272,7 @@ class Coup:
         target: Player = self.get_player(event.kwargs.get('target'))
         if not target or target == self.current_player:
             raise Exception('invalid target')
-        self.assassination_target = target
+        self.assassin_target = target
 
     def queue_block_foreign_aid(self, event: EventData):
         blocker: Player = self.get_player(event.kwargs.get('blocker'))
@@ -311,6 +284,14 @@ class Coup:
         target = self.get_player(event.kwargs.get('target'))
         self.captain_target = target
 
+    def do_captain(self, event: Optional[EventData]):
+        if self.captain_target.coins >= 2:
+            self.captain_target.coins -= 2
+            self.current_player.coins += 2
+        else:
+            self.current_player.coins += self.captain_target.coins
+            self.captain_target.coins = 0
+
     def resolve_challenge(self, get_challenged: Callable[[], Player], card_name: str, callback=None):
         def part(event: EventData):
             challenged: Player = get_challenged()
@@ -318,11 +299,17 @@ class Coup:
             if not challenger:
                 raise Exception('challenger is not defined')
             if card := challenged.show(card_name):
+                # The challenged won
                 self.lose_influence(challenger)
                 self.exchange_card(challenged, card)
                 if callback:
                     callback()
             else:
+                # The challenger won
                 self.lose_influence(challenged)
 
         return part
+
+
+players = [Player(name='hi', coins=12)]
+c = Coup(players, debug=True)

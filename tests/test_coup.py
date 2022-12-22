@@ -1,3 +1,5 @@
+import pytest
+
 from coup import __version__
 from coup import *
 
@@ -72,7 +74,7 @@ def test_foreign_aid():
 
 
 def test_assassin():
-    players = [Player('test0', cards=[Card('assassin')]), Player('test1', cards=[Card('contessa'), Card('duke')])]
+    players = [Player('test0', cards=[Card('assassin'), Card('duke')]), Player('test1', cards=[Card('contessa'), Card('duke')])]
     c = Coup(players)
     c.trigger('income')
     c.trigger('income')
@@ -89,6 +91,16 @@ def test_assassin():
     assert c.get_player('test0').influence() == 2
     assert c.get_player('test1').influence() == 1
     assert c.current_player.name == 'test1'
+    print(c)
+    c.trigger('assassin', target='test0')
+    c.trigger('block_assassin')
+    c.trigger('challenge_block_assassin')
+    assert c.get_player('test1', active=False).influence() == 1
+    assert c.current_player.name == 'test0'
+    c.trigger('assassin', target='test1')
+    c.trigger('block_assassin')
+    c.trigger('challenge_block_assassin')
+    assert c.get_player('test0', active=False).is_dead()
 
 
 def test_coup():
@@ -97,6 +109,13 @@ def test_coup():
     c.trigger('coup', target='test1')
     assert c.get_player('test1').influence() == 1
     assert c.get_player('test0').coins == 0
+
+
+def test_force_coup():
+    players = [Player(name='test0', coins=10), Player(name='test1')]
+    c = Coup(players, debug=True)
+    c.trigger('income')
+    assert c.players[0].coins == 10
 
 
 def test_duke():
