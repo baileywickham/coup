@@ -34,8 +34,8 @@ The main way to use the `Coup` class is to use `c.trigger('action')`. This trigg
 
 
 ## Todo
-[ ] Write a wrapper for the state machine
-[ ] Finish ambassador flow
-[ ] Rewrite to use geneic method for conflict resolution
-[ ] Write better test cases for all characters
-[ ] Fix game over states
+- [ ] Write a wrapper for the state machine
+- [ ] Finish ambassador flow
+- [ ] Rewrite to use geneic method for conflict resolution
+- [ ] Write better test cases for all characters
+- [ ] Fix game over states
