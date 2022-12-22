@@ -3,7 +3,7 @@ from typing import Optional, Callable
 from transitions import State, EventData
 from transitions.extensions import GraphMachine
 
-from coup.deck import *
+from coup.deck import Card, Deck
 from coup.player import Player
 from coup.states import *
 
@@ -29,6 +29,7 @@ class Coup:
         self.foreign_aid_blocker: Optional[Player] = None
         self.assassin_target: Optional[Player] = None
         self.captain_target: Optional[Player] = None
+        self.ambassador_cards: Optional[list[Card]] = None
         self.player_index = 0
         self.players = players
         self.active_players = players.copy()
@@ -109,8 +110,18 @@ class Coup:
                               before=self.resolve_challenge(self.get_current_player, 'captain', self.do_captain))
 
         # Ambassador states
+        self.m.add_transition(trigger='to_ambassador_trade', source=States.waiting_challenge_ambassador,
+                              dest=States.ambassador_trade)
         self.m.add_transition(trigger='ambassador', source=States.player_turn, dest=States.waiting_challenge_ambassador,
                               unless=self.force_coup)
+        self.m.add_transition(trigger='challenge_ambassador', source=States.waiting_challenge_ambassador,
+                              dest=States.player_turn,
+                              before=self.resolve_challenge(self.get_current_player, 'ambassador',
+                                                            lambda: self.trigger('to_ambassador_trade')))
+        self.m.add_transition(trigger='decline_challenge_ambassador', source=States.waiting_challenge_ambassador,
+                              dest=States.ambassador_trade)
+        self.m.add_transition(trigger='resolve_ambassador_trade', source=States.ambassador_trade,
+                              dest=States.player_turn)
 
         self.m.get_graph().draw('coup.png', prog='dot')
 

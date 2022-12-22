@@ -8,6 +8,8 @@ The game is built around a state machine. See the [tests](tests/) directory for 
 Minimal example:
 
 ```python
+    from coup import *
+
     players = [Player('test0'), Player('test1')] # Each player starts with 2 coins and 2 influence
     c = Coup(players)
     c.state # Returns the current state of the game, will return `player_turn`
@@ -16,6 +18,7 @@ Minimal example:
     c.trigger('duke') # prepares to take three coins for test1
     c.state # waiting_challenge_duke
     c.trigger('decline_challenge_duke') # nobody wants to challenge duke, test1 has 5 coins and ends the turn.
+    print(c) # prints game state
 ```
 
 The main way to use the `Coup` class is to use `c.trigger('action')`. This triggers a transition between states. 

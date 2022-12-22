@@ -140,3 +140,7 @@ def test_duke():
     assert c.get_player('test1', active=False).influence() == 0
     assert c.get_player('test0').influence() == 2
     assert c.get_player('test0').coins == 8
+
+def test_ambassador():
+    players = [Player('test0', cards=[Card('duke')]), Player('test1', cards=[Card('contessa'), Card('contessa')])]
+    c = Coup(players)

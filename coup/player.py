@@ -1,4 +1,4 @@
-from coup import Card
+from coup.deck import Card
 
 
 class Player:

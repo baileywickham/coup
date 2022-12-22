@@ -12,3 +12,4 @@ class States(enum.Enum):
     waiting_challenge_block_captain = 'waiting_challenge_block_captain'
     waiting_challenge_block_foreign_aid = 'block_foreign_aid'
     waiting_challenge_captain = 'waiting_challenge_captain'
+    ambassador_trade = 'ambassador_trade'
