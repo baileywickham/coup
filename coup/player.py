@@ -2,7 +2,7 @@ from coup.deck import Card
 
 
 class Player:
-    def __init__(self, name, cards=None, coins=2):
+    def __init__(self, name, cards=None, coins=2) -> None:
         self.name = name
         self.coins = coins
         self.cards: list[Card] = cards or []
@@ -10,7 +10,7 @@ class Player:
     def __repr__(self):
         return f'{self.name}: {self.coins} coins, cards: {self.cards}'
 
-    def show(self, name) -> Card:
+    def show(self, name: str) -> Card | None:
         """
         Validate a player has a claimed card and return it (to the deck).
         :parameter str name: the name of the card to return
@@ -20,8 +20,9 @@ class Player:
             if card.name == name:
                 self.cards.remove(Card(name))
                 return card
+        return None
 
-    def lose_influence(self, name=None):
+    def lose_influence(self, name: str | None = None):
         """
         force a player to lose influence.
         :param name: if provided, flip this card over
@@ -40,10 +41,7 @@ class Player:
         """
         :return bool: returns if the player is dead
         """
-        for card in self.cards:
-            if card.face_up is False:
-                return False
-        return True
+        return self.influence() == 0
 
     def draw(self, card: Card):
         self.cards.append(card)

@@ -19,7 +19,7 @@ class Card:
 
 class Deck:
 
-    def __init__(self, pre_cards: list[Card] = None):
+    def __init__(self, pre_cards: list[Card] | None = None):
         """ Returns a shuffled deck
         :parameter pre_cards a list of pre drawn cards for debugging purposes. These cards are considered already drawn
         and will not be added to the deck."""

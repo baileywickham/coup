@@ -141,6 +141,30 @@ def test_duke():
     assert c.get_player('test0').influence() == 2
     assert c.get_player('test0').coins == 8
 
+
+def test_captain():
+    c = Coup([Player('test0', cards=[Card('captain'), Card('captain')]), Player('test1', cards=[Card('contessa'), Card('contessa')])])
+    assert c.current_player.name == 'test0'
+    c.trigger('captain', target='test1')
+    c.trigger('decline_challenge_captain')
+    assert c.get_player('test1').coins == 0
+    assert c.get_player('test0').coins == 4
+    assert c.current_player.name == 'test1'
+    c.trigger('captain', target='test0')
+    c.trigger('challenge_captain', target='test0')
+    assert c.get_player('test1').influence() == 1
+    assert c.get_player('test1').coins == 0
+    assert c.get_player('test0').coins == 4
+    c.trigger('captain', target='test1')
+    c.trigger('block_captain')
+    c.trigger('challenge_block_captain', challenger='test1')
+    assert c.get_player('test1', active=False).influence() == 0
+    assert c.get_player('test1', active=False).coins == 0
+    assert c.get_player('test0').coins == 4
+
+
+
+
 def test_ambassador():
     players = [Player('test0', cards=[Card('duke')]), Player('test1', cards=[Card('contessa'), Card('contessa')])]
     c = Coup(players)

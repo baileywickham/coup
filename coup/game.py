@@ -1,4 +1,4 @@
-from typing import Optional, Callable
+from typing import Optional, Callable, Any
 
 from transitions import State, EventData
 from transitions.extensions import GraphMachine
@@ -15,6 +15,8 @@ class Coup:
               State(name=States.waiting_challenge_block_foreign_aid),
               State(name=States.waiting_block_assassin),
               State(name=States.waiting_challenge_block_assassin),
+              State(name=States.waiting_challenge_captain),
+              State(name=States.waiting_challenge_block_captain),
               State(name=States.waiting_challenge_duke), ]
 
     def __init__(self, players: list[Player], debug=False):
@@ -72,7 +74,7 @@ class Coup:
                               before=self.queue_assassin, unless=self.force_coup)
         self.m.add_transition(trigger='challenge_assassin', source=States.waiting_block_assassin,
                               dest=States.player_turn,
-                              before=self.resolve_challenge(self.get_current_player, 'assassin'))
+                              before=self.resolve_challenge(self.get_player, 'assassin'))
         self.m.add_transition(trigger='block_assassin', source=States.waiting_block_assassin,
                               dest=States.waiting_challenge_block_assassin)
         self.m.add_transition(trigger='decline_block_assassin', source=States.waiting_block_assassin,
@@ -90,24 +92,24 @@ class Coup:
         self.m.add_transition(trigger='decline_challenge_duke', source=States.waiting_challenge_duke,
                               dest=States.player_turn, before=self.do_duke)
         self.m.add_transition(trigger='challenge_duke', source=States.waiting_challenge_duke, dest=States.player_turn,
-                              before=self.resolve_challenge(self.get_current_player, 'duke', self.do_duke))
+                              before=self.resolve_challenge(self.get_player, 'duke', self.do_duke))
 
         # Captain states
         self.m.add_transition(trigger='captain', source=States.player_turn, dest=States.waiting_challenge_captain,
                               before=self.queue_captain, unless=self.force_coup)
-        self.m.add_transition(trigger='decline_block', source=States.waiting_challenge_captain, dest=States.player_turn,
+        self.m.add_transition(trigger='decline_block_captain', source=States.waiting_challenge_captain, dest=States.player_turn,
                               before=self.do_captain)
         self.m.add_transition(trigger='block_captain', source=States.waiting_challenge_captain,
                               dest=States.waiting_challenge_block_captain)
         self.m.add_transition(trigger='challenge_block_captain', source=States.waiting_challenge_block_captain,
-                              dest=States.player_turn, before=self.resolve_challenge_block_captain)
+                              dest=States.player_turn, before=self.resolve_challenge(self.get_captain_target, 'captain', self.do_captain))
         self.m.add_transition(trigger='decline_challenge_block_captain', source=States.waiting_challenge_block_captain,
                               dest=States.player_turn)
-        self.m.add_transition(trigger='decline_challenge', source=States.waiting_challenge_captain,
+        self.m.add_transition(trigger='decline_challenge_captain', source=States.waiting_challenge_captain,
                               dest=States.player_turn, before=self.do_captain)
         self.m.add_transition(trigger='challenge_captain', source=States.waiting_challenge_captain,
                               dest=States.player_turn,
-                              before=self.resolve_challenge(self.get_current_player, 'captain', self.do_captain))
+                              before=self.resolve_challenge(self.get_player, 'captain', self.do_captain))
 
         # Ambassador states
         self.m.add_transition(trigger='to_ambassador_trade', source=States.waiting_challenge_ambassador,
@@ -116,7 +118,7 @@ class Coup:
                               unless=self.force_coup)
         self.m.add_transition(trigger='challenge_ambassador', source=States.waiting_challenge_ambassador,
                               dest=States.player_turn,
-                              before=self.resolve_challenge(self.get_current_player, 'ambassador',
+                              before=self.resolve_challenge(self.get_player, 'ambassador',
                                                             lambda: self.trigger('to_ambassador_trade')))
         self.m.add_transition(trigger='decline_challenge_ambassador', source=States.waiting_challenge_ambassador,
                               dest=States.ambassador_trade)
@@ -128,12 +130,11 @@ class Coup:
     def __repr__(self):
         return f'State: {self.state}\n' + '\n'.join([str(player) for player in self.active_players])
 
-    def get_current_player(self) -> Player:
-        """ Helper method to return the current player, needed because of the resolve_conflict closure."""
-        return self.current_player
-
     def get_assassin_target(self) -> Player:
         return self.assassin_target
+
+    def get_captain_target(self) -> Player:
+        return self.captain_target
 
     def force_coup(self, event):
         return True if self.current_player.coins >= 10 else False
@@ -142,7 +143,7 @@ class Coup:
         self.deck.return_to_deck(card)
         player.draw(self.deck.draw())
 
-    def get_player(self, name: str, active: bool = True) -> Player:
+    def get_player(self, name: str | None = None, active: bool = True) -> Player | None:
         """
         Returns a player
         :param active: only returns active players
@@ -150,9 +151,12 @@ class Coup:
         :return:
         """
         search_list = self.active_players if active else self.players
+        if not name:
+            return self.current_player
         for player in search_list:
             if player.name == name:
                 return player
+        return None
 
     def next_turn(self, event):
         self.assassin_target = None
@@ -170,7 +174,7 @@ class Coup:
         self.current_player.coins += 2
 
     def do_coup(self, event: EventData):
-        target: Player = self.get_player(event.kwargs.get('target'))
+        target = self.get_player(event.kwargs.get('target'))
         if self.current_player.coins < 7:
             raise Exception('need at least 7 coins')
         if not target:
@@ -178,10 +182,10 @@ class Coup:
         self.current_player.coins -= 7
         self.lose_influence(target)
 
-    def do_assassin(self, event: EventData):
+    def do_assassin(self, event: EventData | None = None):
         self.lose_influence(self.assassin_target)
 
-    def do_duke(self, event: EventData = None):
+    def do_duke(self, event: EventData | None = None):
         self.current_player.coins += 3
 
     def lose_influence(self, target: Player):
@@ -228,7 +232,9 @@ class Coup:
         target = self.get_player(event.kwargs.get('target'))
         self.captain_target = target
 
-    def do_captain(self, event: Optional[EventData]):
+    def do_captain(self, event: EventData | None = None):
+        if not self.captain_target:
+            raise Exception('captain target does not exist')
         if self.captain_target.coins >= 2:
             self.captain_target.coins -= 2
             self.current_player.coins += 2
@@ -236,11 +242,11 @@ class Coup:
             self.current_player.coins += self.captain_target.coins
             self.captain_target.coins = 0
 
-    def resolve_challenge(self, get_challenged: Callable[[], Player], card_name: str, callback=None):
+    def resolve_challenge(self, get_challenged: Callable[..., Player], card_name: str, callback=None):
         def part(event: EventData):
             challenged: Player = get_challenged()
             challenger = self.get_player(get_target(event))
-            if not challenger:
+            if not challenger or not get_target(event):
                 raise Exception(f'challenger {get_target(event)} is not defined')
             if card := challenged.show(card_name):
                 # The challenged won
@@ -251,7 +257,6 @@ class Coup:
             else:
                 # The challenger won
                 self.lose_influence(challenged)
-
         return part
 
 
