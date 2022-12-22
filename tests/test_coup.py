@@ -94,12 +94,12 @@ def test_assassin():
     print(c)
     c.trigger('assassin', target='test0')
     c.trigger('block_assassin')
-    c.trigger('challenge_block_assassin')
+    c.trigger('challenge_block_assassin', challenger='test1')
     assert c.get_player('test1', active=False).influence() == 1
     assert c.current_player.name == 'test0'
     c.trigger('assassin', target='test1')
     c.trigger('block_assassin')
-    c.trigger('challenge_block_assassin')
+    c.trigger('challenge_block_assassin', challenger='test0')
     assert c.get_player('test0', active=False).is_dead()
 
 

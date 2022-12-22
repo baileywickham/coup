@@ -136,7 +136,8 @@ class Coup:
         self.m.add_transition(trigger='decline_block_assassin', source=States.waiting_block_assassin,
                               dest=States.player_turn, before=self.do_assassin)
         self.m.add_transition(trigger='challenge_block_assassin', source=States.waiting_challenge_block_assassin,
-                              dest=States.player_turn, before=self.resolve_challenge_block_assassin)
+                              dest=States.player_turn,
+                              before=self.resolve_challenge(self.get_assassin_target, 'contessa'))
         self.m.add_transition(trigger='decline_challenge_block_assassin',
                               source=States.waiting_challenge_block_assassin,
                               dest=States.player_turn)
@@ -205,9 +206,8 @@ class Coup:
         self.assassin_target = None
         self.foreign_aid_blocker = None
         self.captain_target = None
-        if self.debug:
-            if len(self.active_players) == 0:
-                self.trigger('game_over')
+        if not self.debug and len(self.active_players) == 0:
+            self.trigger('game_over')
         self.player_index = (self.player_index + 1) % len(self.active_players)
         self.current_player = self.active_players[self.player_index]
 
@@ -245,14 +245,6 @@ class Coup:
         else:
             self.lose_influence(blocker)
             self.do_foreign_aid()
-
-    def resolve_challenge_block_assassin(self, event: EventData):
-        blocker = self.assassin_target
-        if card := blocker.show('contessa'):
-            self.lose_influence(self.current_player)
-            self.exchange_card(blocker, card)
-        else:
-            self.lose_influence(blocker)
 
     def resolve_challenge_block_captain(self, event: EventData):
         blocker = self.captain_target
@@ -295,9 +287,9 @@ class Coup:
     def resolve_challenge(self, get_challenged: Callable[[], Player], card_name: str, callback=None):
         def part(event: EventData):
             challenged: Player = get_challenged()
-            challenger = self.get_player(event.kwargs.get('challenger'))
+            challenger = self.get_player(get_target(event))
             if not challenger:
-                raise Exception('challenger is not defined')
+                raise Exception(f'challenger {get_target(event)} is not defined')
             if card := challenged.show(card_name):
                 # The challenged won
                 self.lose_influence(challenger)
@@ -307,8 +299,11 @@ class Coup:
             else:
                 # The challenger won
                 self.lose_influence(challenged)
-
         return part
+
+
+def get_target(event: EventData):
+    return event.kwargs.get('target') or event.kwargs.get('challenger') or event.kwargs.get('blocker')
 
 
 players = [Player(name='hi', coins=12)]
