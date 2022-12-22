@@ -30,6 +30,7 @@ class Deck:
         self.shuffle()
 
     def return_to_deck(self, card):
+        card.face_up = False
         self.cards.append(card)
         self.shuffle()
 

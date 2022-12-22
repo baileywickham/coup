@@ -66,26 +66,58 @@ def test_foreign_aid():
     c.trigger('foreign_aid')
     c.trigger('block_foreign_aid', blocker='test0')
     c.trigger('challenge_block_foreign_aid')
-    assert c.get_player('test1').influence() == 0
-    assert c.get_player('test1').is_dead() is True
-    assert c.get_player('test1').coins == 2
+    assert c.get_player('test1', active=False).influence() == 0
+    assert c.get_player('test1', active=False).is_dead() is True
+    assert c.get_player('test1', active=False).coins == 2
 
 
-def test_assassinate():
-    player = [Player('test0', cards=[Card('assassin')]), Player('test1', cards=[Card('contessa'), Card('duke')])]
-    c = Coup(player)
+def test_assassin():
+    players = [Player('test0', cards=[Card('assassin')]), Player('test1', cards=[Card('contessa'), Card('duke')])]
+    c = Coup(players)
     c.trigger('income')
     c.trigger('income')
     assert c.current_player.name == 'test0'
-    c.trigger('assassinate', target='test1')
-    c.trigger('decline_block_assassinate')
+    c.trigger('assassin', target='test1')
+    c.trigger('decline_block_assassin')
     assert c.get_player('test0').influence() == 2
     assert c.get_player('test1').influence() == 1
     c.trigger('income')
     assert c.current_player.name == 'test0'
-    c.trigger('assassinate', target='test1')
-    c.trigger('block_assassinate')
-    c.trigger('decline_challenge_block_assassinate')
+    c.trigger('assassin', target='test1')
+    c.trigger('block_assassin')
+    c.trigger('decline_challenge_block_assassin')
     assert c.get_player('test0').influence() == 2
     assert c.get_player('test1').influence() == 1
     assert c.current_player.name == 'test1'
+
+
+def test_coup():
+    players = [Player(name='test0', coins=7), Player(name='test1')]
+    c = Coup(players)
+    c.trigger('coup', target='test1')
+    assert c.get_player('test1').influence() == 1
+    assert c.get_player('test0').coins == 0
+
+
+def test_duke():
+    players = [Player('test0', cards=[Card('duke')]), Player('test1', cards=[Card('contessa'), Card('contessa')])]
+    c = Coup(players)
+    assert c.current_player.name == 'test0'
+    assert c.current_player.coins == 2
+    c.trigger('duke')
+    c.trigger('decline_challenge_duke')
+    assert c.get_player('test0').coins == 5
+
+    assert c.current_player.name == 'test1'
+    c.trigger('duke')
+    c.trigger('challenge_duke', challenger='test0')
+    assert c.get_player('test1').influence() == 1
+    assert c.get_player('test0').coins == 5
+    assert c.get_player('test1').coins == 2
+
+    assert c.current_player.name == 'test0'
+    c.trigger('duke')
+    c.trigger('challenge_duke', challenger='test1')
+    assert c.get_player('test1', active=False).influence() == 0
+    assert c.get_player('test0').influence() == 2
+    assert c.get_player('test0').coins == 8
