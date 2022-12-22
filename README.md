@@ -2,6 +2,13 @@
 
 A simulator of the Coup board game. 
 
+## Install
+This package uses [poetry](https://python-poetry.org/). 
+- Run `poetry install` to install the dependencies. 
+- Run `poetry shell` to start the `venv`, then `python3 coup.py`
+- Run `pytest` in the `tests/` directory to run the pytest tests. 
+
+
 ## State Machine
 The game is built around a state machine. See the [tests](tests/) directory for more information on using it. Eventually a runner should be written for it. 
 
