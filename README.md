@@ -10,7 +10,7 @@ This package uses [poetry](https://python-poetry.org/).
 
 
 ## State Machine
-The game is built around a state machine. See the [tests](tests/) directory for more information on using it. Eventually a runner should be written for it. 
+The game is built around a state machine. See the [tests](tests/) directory for more information on using it. The state machine is provided by (the excellent) [transitions](https://github.com/pytransitions/transitions/tree/master/transitions) library, the raw machine can be accessed on the `Coup` object with `Coup().m`. 
 
 Minimal example:
 
