@@ -9,16 +9,6 @@ from coup.states import *
 
 
 class Coup:
-    states = [State(name=States.player_turn, on_enter='next_turn'),
-              State(name=States.game_over),
-              State(name=States.waiting_block_foreign_aid),
-              State(name=States.waiting_challenge_block_foreign_aid),
-              State(name=States.waiting_block_assassin),
-              State(name=States.waiting_challenge_block_assassin),
-              State(name=States.waiting_challenge_captain),
-              State(name=States.waiting_challenge_block_captain),
-              State(name=States.waiting_challenge_duke), ]
-
     def __init__(self, players: list[Player], debug=False):
         self.debug = debug
         if self.debug:
@@ -46,10 +36,11 @@ class Coup:
             while len(player.cards) < 2:
                 player.draw(self.deck.draw())
 
-        self.m: GraphMachine = GraphMachine(model=self, states=Coup.states, initial=States.player_turn, send_event=True,
+        self.m: GraphMachine = GraphMachine(model=self, states=States, initial=States.player_turn, send_event=True,
                                             show_state_attributes=True, show_conditions=True,
                                             show_auto_transitions=True,
                                             auto_transitions=False)
+        self.m.states.get(States.player_turn.name).add_callback('enter', self.next_turn)
         self.m.add_transition(trigger='game_over', source=States.player_turn, dest=States.game_over),
 
         self.m.add_transition(trigger='income', source=States.player_turn, dest=States.player_turn,
@@ -201,15 +192,6 @@ class Coup:
         else:
             self.lose_influence(blocker)
             self.do_foreign_aid()
-
-    def resolve_challenge_block_captain(self, event: EventData):
-        blocker = self.captain_target
-        if card := (blocker.show('captain') or blocker.show('ambassador')):
-            self.lose_influence(self.current_player)
-            self.exchange_card(blocker, card)
-        else:
-            self.lose_influence(blocker)
-            self.do_captain()
 
     def get_possible_transitions(self):
         return self.m.get_triggers(self.state)
